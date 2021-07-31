@@ -2,30 +2,25 @@ package echoswaggerui
 
 import (
 	"embed"
-	"io/fs"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 //go:embed swagger_ui
 var uiFiles embed.FS
 
-func Handler(e *echo.Echo, specYAML []byte) error {
-	strip, err := fs.Sub(uiFiles, "swagger_ui")
-	if err != nil {
-		return err
-	}
+func Handler(specYAML []byte) echo.MiddlewareFunc {
+	httpFS := http.FS(uiFiles)
 
-	httpFS := http.FS(strip)
-	assetHandler := http.FileServer(httpFS)
-	_ = assetHandler
-
-	e.GET("/swagger/swagger.yaml", func(ctx echo.Context) error {
-		return ctx.Blob(http.StatusOK, "application/x-yaml", specYAML)
+	return middleware.StaticWithConfig(middleware.StaticConfig{
+		Skipper:    middleware.DefaultSkipper,
+		Root:       "swagger_ui",
+		Index:      "index.html",
+		HTML5:      false,
+		Browse:     false,
+		IgnoreBase: false,
+		Filesystem: httpFS,
 	})
-
-	e.GET("/swagger/*", echo.WrapHandler(http.StripPrefix("/swagger/", assetHandler)))
-
-	return nil
 }
